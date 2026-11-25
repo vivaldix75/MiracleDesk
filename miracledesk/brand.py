@@ -32,6 +32,12 @@ sub(rc, r'"FileDescription", "RustDesk Remote Desktop"', f'"FileDescription", "{
 sub(rc, r'"ProductName", "RustDesk"', f'"ProductName", "{APP_NAME}"')
 sub(rc, r'"CompanyName", "[^"]*"', '"CompanyName", "GODF"')
 
+packer = "libs/portable/Cargo.toml"
+sub(packer, r'description = "RustDesk Remote Desktop"', f'description = "{APP_NAME} Remote Desktop"')
+sub(packer, r'\[package\.metadata\.winres\]\nLegalCopyright = "[^"]*"',
+    f'[package.metadata.winres]\nLegalCopyright = "GODF"\nProductName = "{APP_NAME}"\n'
+    f'FileDescription = "{APP_NAME} Remote Desktop"\nCompanyName = "GODF"\nOriginalFilename = "{APP_NAME}.exe"')
+
 copies = {
     "icon.ico": ["res/icon.ico", "flutter/windows/runner/resources/app_icon.ico"],
     "tray-icon.ico": ["res/tray-icon.ico"],
