@@ -27,6 +27,12 @@ jobs:
   build-windows:
     needs: [generate-bridge, build-topmost]
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { variant: client, exe: MiracleDesk }
+          - { variant: admin, exe: MiracleDeskAdmin }
     steps:
       - name: Export GitHub Actions cache environment variables
         uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
@@ -44,6 +50,7 @@ jobs:
         env:
           RS_PUB_KEY: ${{ secrets.RS_PUB_KEY }}
           RENDEZVOUS_SERVER: ${{ secrets.RENDEZVOUS_SERVER }}
+          MD_VARIANT: ${{ matrix.variant }}
         run: python3 miracledesk/brand.py
 
       - name: Restore bridge files
@@ -88,7 +95,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
-          prefix-key: windows-2022
+          prefix-key: windows-2022-${{ matrix.variant }}
 
       - name: Setup vcpkg with Github Actions binary cache
         uses: lukka/run-vcpkg@b1a0dd252f06b9e25b3c022a9a03bd7a427fb6a2 # v11
@@ -136,12 +143,12 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./out
-          mv ./target/release/rustdesk-portable-packer.exe ./out/MiracleDesk.exe
-          sha256sum ./out/MiracleDesk.exe
+          mv ./target/release/rustdesk-portable-packer.exe ./out/${{ matrix.exe }}.exe
+          sha256sum ./out/${{ matrix.exe }}.exe
 
-      - name: Upload MiracleDesk.exe
+      - name: Upload ${{ matrix.exe }}.exe
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: MiracleDesk-windows-x64
-          path: ./out/MiracleDesk.exe
+          name: ${{ matrix.exe }}-windows-x64
+          path: ./out/${{ matrix.exe }}.exe
           if-no-files-found: error

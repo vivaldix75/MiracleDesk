@@ -4,7 +4,26 @@ import os, re, shutil, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "miracledesk", "assets")
-APP_NAME = "MiracleDesk"
+VARIANT = os.environ.get("MD_VARIANT", "client")
+# client = 고객용(제어받기 전용, 허용 클릭으로만 접속, 설정 잠금)
+# admin  = 관리자용(제어하기 전용)
+VARIANTS = {
+    "client": {
+        "app_name": "MiracleDesk",
+        "hard": {"conn-type": "incoming", "disable-settings": "Y", "disable-installation": "Y",
+                 "disable-account": "Y", "disable-ab": "Y"},
+        "overwrite": {"approve-mode": "click"},
+    },
+    "admin": {
+        "app_name": "MiracleDeskAdmin",
+        "hard": {"conn-type": "outgoing", "disable-account": "Y"},
+        "overwrite": {},
+    },
+}
+if VARIANT not in VARIANTS:
+    sys.exit(f"알 수 없는 MD_VARIANT: {VARIANT}")
+V = VARIANTS[VARIANT]
+APP_NAME = V["app_name"]
 SERVER = os.environ.get("RENDEZVOUS_SERVER", "rd.godf.kr")
 KEY = os.environ.get("RS_PUB_KEY", "").strip()
 if not KEY:
@@ -26,6 +45,17 @@ sub(cfg, r'(APP_NAME: RwLock<String> = RwLock::new\()"RustDesk"', rf'\1"{APP_NAM
 sub(cfg, r'pub const RENDEZVOUS_SERVERS: &\[&str\] = &\[[^\]]*\];',
     f'pub const RENDEZVOUS_SERVERS: &[&str] = &["{SERVER}"];')
 sub(cfg, r'pub const RS_PUB_KEY: &str = "[^"]*";', f'pub const RS_PUB_KEY: &str = "{KEY}";')
+
+
+def rust_map(d):
+    items = ", ".join(f'("{k}".to_owned(), "{v}".to_owned())' for k, v in d.items())
+    return f"RwLock::new(HashMap::from([{items}]))" if d else "Default::default()"
+
+
+sub(cfg, r'(pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = )Default::default\(\);',
+    lambda m: m.group(1) + rust_map(V["hard"]) + ";")
+sub(cfg, r'(pub static ref OVERWRITE_SETTINGS: RwLock<HashMap<String, String>> = )Default::default\(\);',
+    lambda m: m.group(1) + rust_map(V["overwrite"]) + ";")
 
 rc = "flutter/windows/runner/Runner.rc"
 sub(rc, r'"FileDescription", "RustDesk Remote Desktop"', f'"FileDescription", "{APP_NAME} Remote Desktop"')
